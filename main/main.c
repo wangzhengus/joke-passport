@@ -13,9 +13,12 @@
 #include "bsp_pins.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
+#include "esp_timer.h"
 
 static const char *TAG = "joke_passport";
 static app_page_t s_page = APP_PAGE_HOME;
+// 长按确定后松开常会再冒一次 CLICK，短时间内忽略，避免刚进设置又被点回首页。
+static int64_t s_ignore_click_us;
 
 static void page_exit(app_page_t page)
 {
@@ -63,6 +66,14 @@ void app_goto(app_page_t page)
 static void on_key(bsp_btn_t btn, bsp_btn_ev_t ev, void *user)
 {
     (void)user;
+    int64_t now = esp_timer_get_time();
+    if (ev == BSP_BTN_LONG) {
+        s_ignore_click_us = now + 600000;  // 600ms
+    }
+    if (ev == BSP_BTN_CLICK && now < s_ignore_click_us) {
+        return;
+    }
+
     if (!bsp_lvgl_lock(500)) {
         return;
     }
