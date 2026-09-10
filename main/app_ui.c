@@ -1,7 +1,5 @@
-// main/app_ui.c —— 顶栏 / 标签 / 预置头像绘制。
+// main/app_ui.c —— 黑底圆角白卡 / 居中顶栏 / 预置头像。
 #include "app_ui.h"
-
-#include <stdio.h>
 
 #include "app_profile.h"
 #include "bsp_battery.h"
@@ -49,31 +47,44 @@ lv_obj_t *app_ui_screen_create(void)
 {
     lv_obj_t *scr = lv_obj_create(NULL);
     lv_obj_remove_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_bg_color(scr, lv_color_hex(APP_COL_BG), 0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(APP_COL_OUTSIDE), 0);
     lv_obj_set_style_border_width(scr, 0, 0);
     lv_obj_set_style_pad_all(scr, 0, 0);
     return scr;
 }
 
-lv_obj_t *app_ui_topbar_create(lv_obj_t *parent)
+lv_obj_t *app_ui_card(lv_obj_t *scr)
 {
-    lv_obj_t *bar = lv_obj_create(parent);
+    lv_obj_t *card = lv_obj_create(scr);
+    lv_obj_remove_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(card, 0, 0);
+    lv_obj_set_size(card, APP_SCREEN_W, APP_SCREEN_H);
+    lv_obj_set_style_bg_color(card, lv_color_hex(APP_COL_BG), 0);
+    lv_obj_set_style_border_width(card, 0, 0);
+    lv_obj_set_style_pad_all(card, 0, 0);
+    lv_obj_set_style_radius(card, APP_RADIUS, 0);
+    lv_obj_set_style_clip_corner(card, true, 0);
+    return card;
+}
+
+lv_obj_t *app_ui_topbar_create(lv_obj_t *card)
+{
+    lv_obj_t *bar = lv_obj_create(card);
     lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_pos(bar, 0, 0);
-    lv_obj_set_size(bar, 240, 28);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(APP_COL_BG), 0);
+    lv_obj_set_size(bar, APP_SCREEN_W, 32);
+    lv_obj_set_style_bg_opa(bar, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(bar, 0, 0);
-    lv_obj_set_style_border_side(bar, LV_BORDER_SIDE_BOTTOM, 0);
-    lv_obj_set_style_border_color(bar, lv_color_hex(APP_COL_LINE), 0);
-    lv_obj_set_style_border_width(bar, 1, 0);
     lv_obj_set_style_pad_all(bar, 0, 0);
     lv_obj_set_style_radius(bar, 0, 0);
 
     lv_obj_t *title = app_ui_label(bar, "Joke Passport", APP_COL_INK);
-    lv_obj_align(title, LV_ALIGN_LEFT_MID, 8, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_t *batt = app_ui_label(bar, "", APP_COL_MUTED);
-    lv_obj_align(batt, LV_ALIGN_RIGHT_MID, -8, 0);
+    lv_obj_set_style_text_font(batt, &lv_font_montserrat_14, 0);
+    lv_obj_align(batt, LV_ALIGN_RIGHT_MID, -12, 0);
     lv_obj_set_user_data(bar, batt);
 
     app_ui_topbar_set_battery(batt, bsp_battery_soc());
