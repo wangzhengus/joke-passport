@@ -1,8 +1,7 @@
-// main/app_home.c —— 护照首页：黑底圆角卡 + 左侧红条顶满 + 居中资料。
+// main/app_home.c —— 护照首页：黑底圆角卡 + 左侧红条 + 居中资料（稳布局，避免 zoom/长竖排撑爆）。
 #include "app.h"
 
 #include <stdio.h>
-#include <string.h>
 
 #include "app_profile.h"
 #include "app_ui.h"
@@ -11,18 +10,14 @@
 #include "esp_timer.h"
 #include "lvgl.h"
 
-// 姓名目标约 36px：字库仅 16px，用 zoom≈2.25 倍放大。
-#define NAME_ZOOM ((256 * 36) / 16)
-#define HINT_ZOOM 168
-
 static lv_obj_t *s_scr;
 static lv_obj_t *s_card;
 static lv_obj_t *s_batt;
 static lv_obj_t *s_name;
-static lv_obj_t *s_name_bold;  // 错位叠加，模拟加粗
 static lv_obj_t *s_title;
 static lv_obj_t *s_bio;
 static lv_obj_t *s_side_text;
+static lv_obj_t *s_id;
 static lv_obj_t *s_avatar_host;
 static lv_obj_t *s_hint;
 static esp_timer_handle_t s_batt_timer;
@@ -49,25 +44,6 @@ static void rebuild_avatar(void)
     app_ui_draw_avatar(s_avatar_host, 0, 0, 72, p ? p->avatar_idx : 0);
 }
 
-// 红条竖排文案：每字一行，左右居中。
-static void set_side_vertical(lv_obj_t *lab, const char *passport_id)
-{
-    static const char *title_lines[] = {"笑", "场", "通", "行", "证", NULL};
-    char buf[128];
-    size_t n = 0;
-    buf[0] = '\0';
-    for (int i = 0; title_lines[i]; i++) {
-        n += (size_t)snprintf(buf + n, sizeof(buf) - n, "%s%s", i ? "\n" : "", title_lines[i]);
-    }
-    if (passport_id && passport_id[0]) {
-        n += (size_t)snprintf(buf + n, sizeof(buf) - n, "\n");
-        for (const char *c = passport_id; *c && n + 3 < sizeof(buf); c++) {
-            n += (size_t)snprintf(buf + n, sizeof(buf) - n, "\n%c", *c);
-        }
-    }
-    lv_label_set_text(lab, buf);
-}
-
 void app_home_refresh(void)
 {
     if (!s_card) {
@@ -80,18 +56,14 @@ void app_home_refresh(void)
     if (s_name) {
         lv_label_set_text(s_name, p->name);
     }
-    if (s_name_bold) {
-        lv_label_set_text(s_name_bold, p->name);
-    }
     if (s_title) {
         lv_label_set_text(s_title, p->title);
     }
     if (s_bio) {
         lv_label_set_text(s_bio, p->bio);
     }
-    if (s_side_text) {
-        set_side_vertical(s_side_text, p->passport_id);
-        lv_obj_align(s_side_text, LV_ALIGN_TOP_MID, 0, 8);
+    if (s_id) {
+        lv_label_set_text(s_id, p->passport_id);
     }
     rebuild_avatar();
 }
@@ -104,7 +76,7 @@ void app_home_enter(void)
     lv_obj_t *bar = app_ui_topbar_create(s_card);
     s_batt = (lv_obj_t *)lv_obj_get_user_data(bar);
 
-    // 红条顶到最上、通到最下；父卡 clip + 圆角，左上/左下自然成圆。
+    // 红条顶满；圆角由白卡 clip 裁出左上/左下。
     lv_obj_t *red = lv_obj_create(s_card);
     lv_obj_remove_flag(red, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_pos(red, 0, 0);
@@ -114,66 +86,68 @@ void app_home_enter(void)
     lv_obj_set_style_radius(red, 0, 0);
     lv_obj_set_style_pad_all(red, 0, 0);
 
-    s_side_text = app_ui_label(red, "", 0xFFFFFF);
-    lv_obj_set_width(s_side_text, APP_RED_W - 2);
+    // 只竖排产品名（避免编号逐字把标签撑出屏外导致错乱/崩溃）
+    s_side_text = app_ui_label(red, "笑\n场\n通\n行\n证", 0xFFFFFF);
+    lv_obj_set_width(s_side_text, APP_RED_W);
     lv_obj_set_style_text_align(s_side_text, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_style_text_line_space(s_side_text, 1, 0);
+    lv_obj_set_style_text_line_space(s_side_text, 2, 0);
+    lv_obj_align(s_side_text, LV_ALIGN_CENTER, 0, 0);
 
-    // 主内容区相对整卡水平居中（不因红条右移）。
+    // 头像：相对整屏水平居中 (240-72)/2 = 84
     s_avatar_host = lv_obj_create(s_card);
     lv_obj_remove_flag(s_avatar_host, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_size(s_avatar_host, 72, 72);
     lv_obj_set_style_bg_opa(s_avatar_host, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(s_avatar_host, 0, 0);
     lv_obj_set_style_pad_all(s_avatar_host, 0, 0);
-    lv_obj_align(s_avatar_host, LV_ALIGN_TOP_MID, 0, 48);
+    lv_obj_set_pos(s_avatar_host, 84, 44);
 
-    // 姓名：放大 + 轻微错位叠字模拟加粗
+    // 姓名：当前字库 16px；用 Montserrat 20 作英文回退，中文仍 cn_16。
+    // 真正 36px 需更大 CJK 字库；先保证不飞出屏幕、按键可用。
     s_name = app_ui_label(s_card, "", APP_COL_INK);
     lv_obj_set_style_text_align(s_name, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_width(s_name, 200);
-    lv_obj_set_style_transform_zoom(s_name, NAME_ZOOM, 0);
-    lv_obj_align(s_name, LV_ALIGN_TOP_MID, 0, 132);
-
-    s_name_bold = app_ui_label(s_card, "", APP_COL_INK);
-    lv_obj_set_style_text_align(s_name_bold, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_width(s_name_bold, 200);
-    lv_obj_set_style_transform_zoom(s_name_bold, NAME_ZOOM, 0);
-    lv_obj_align(s_name_bold, LV_ALIGN_TOP_MID, 1, 132);
+    lv_obj_set_width(s_name, 180);
+    lv_obj_set_style_text_font(s_name, &lv_font_cn_16, 0);
+    lv_obj_set_pos(s_name, 30, 128);
 
     s_title = app_ui_label(s_card, "", APP_COL_INK);
     lv_obj_set_style_text_align(s_title, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_width(s_title, 200);
-    lv_obj_align(s_title, LV_ALIGN_TOP_MID, 0, 188);
+    lv_obj_set_width(s_title, 180);
+    lv_obj_set_pos(s_title, 30, 152);
 
     lv_obj_t *rule1 = lv_obj_create(s_card);
     lv_obj_remove_flag(rule1, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(rule1, 50, 178);
     lv_obj_set_size(rule1, 140, 1);
     lv_obj_set_style_bg_color(rule1, lv_color_hex(APP_COL_LINE), 0);
     lv_obj_set_style_border_width(rule1, 0, 0);
     lv_obj_set_style_radius(rule1, 0, 0);
-    lv_obj_align(rule1, LV_ALIGN_TOP_MID, 0, 214);
 
     s_bio = app_ui_label(s_card, "", APP_COL_MUTED);
     lv_obj_set_style_text_align(s_bio, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(s_bio, 180);
     lv_label_set_long_mode(s_bio, LV_LABEL_LONG_WRAP);
-    lv_obj_align(s_bio, LV_ALIGN_TOP_MID, 0, 224);
+    lv_obj_set_pos(s_bio, 30, 188);
 
     lv_obj_t *rule2 = lv_obj_create(s_card);
     lv_obj_remove_flag(rule2, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_pos(rule2, 50, 236);
     lv_obj_set_size(rule2, 140, 1);
     lv_obj_set_style_bg_color(rule2, lv_color_hex(APP_COL_LINE), 0);
     lv_obj_set_style_border_width(rule2, 0, 0);
     lv_obj_set_style_radius(rule2, 0, 0);
-    lv_obj_align(rule2, LV_ALIGN_TOP_MID, 0, 268);
 
-    s_hint = app_ui_label(s_card, "任意键开始笑，长按确定进入设置", APP_COL_MUTED);
+    s_id = app_ui_label(s_card, "", APP_COL_MUTED);
+    lv_obj_set_style_text_align(s_id, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_width(s_id, 200);
+    lv_obj_set_style_text_font(s_id, &lv_font_montserrat_14, 0);
+    lv_obj_set_pos(s_id, 20, 246);
+
+    s_hint = app_ui_label(s_card, "任意键开始笑  长按确定设置", APP_COL_MUTED);
     lv_obj_set_style_text_align(s_hint, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(s_hint, 200);
-    lv_label_set_long_mode(s_hint, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_transform_zoom(s_hint, HINT_ZOOM, 0);
-    lv_obj_align(s_hint, LV_ALIGN_BOTTOM_MID, 0, -14);
+    lv_obj_set_style_text_opa(s_hint, LV_OPA_70, 0);
+    lv_obj_set_pos(s_hint, 20, 286);
 
     app_home_refresh();
     lv_screen_load(s_scr);
@@ -200,10 +174,10 @@ void app_home_exit(void)
     s_card = NULL;
     s_batt = NULL;
     s_name = NULL;
-    s_name_bold = NULL;
     s_title = NULL;
     s_bio = NULL;
     s_side_text = NULL;
+    s_id = NULL;
     s_avatar_host = NULL;
     s_hint = NULL;
 }
