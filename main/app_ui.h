@@ -10,10 +10,13 @@
 #define APP_COL_LINE    0xE8E0D0
 #define APP_COL_RED     0xCC3333
 #define APP_COL_AVATAR  0xFAC94A
-#define APP_RADIUS      20
+#define APP_RADIUS      28
 #define APP_RED_W       28
 #define APP_SCREEN_W    240
 #define APP_SCREEN_H    320
+// 主内容区（去掉左侧红条后）
+#define APP_CONTENT_X   APP_RED_W
+#define APP_CONTENT_W   (APP_SCREEN_W - APP_RED_W)
 
 LV_FONT_DECLARE(lv_font_cn_16);
 

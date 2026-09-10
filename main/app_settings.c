@@ -1,4 +1,4 @@
-// main/app_settings.c —— 设置页：仅 SoftAP 引导；Wi-Fi 在后台任务启动，避免卡住按键。
+// main/app_settings.c —— 设置页：精简四行（热点/密码红字/浏览器/网址）。
 #include "app.h"
 
 #include "app_config_ap.h"
@@ -17,7 +17,11 @@ static const char *TAG = "app_settings";
 static lv_obj_t *s_scr;
 static lv_obj_t *s_card;
 static lv_obj_t *s_batt;
-static lv_obj_t *s_ap_info;
+static lv_obj_t *s_line_ssid;
+static lv_obj_t *s_line_pwd_label;
+static lv_obj_t *s_line_pwd;
+static lv_obj_t *s_line_browser;
+static lv_obj_t *s_line_url;
 static lv_obj_t *s_status;
 static esp_timer_handle_t s_batt_timer;
 static TaskHandle_t s_ap_task;
@@ -25,21 +29,37 @@ static volatile bool s_page_alive;
 
 static void refresh_ap_info(void)
 {
-    if (!s_ap_info) {
+    if (!s_line_ssid) {
         return;
     }
     if (app_config_ap_is_running()) {
-        lv_label_set_text_fmt(s_ap_info,
-                              "1. 连接手机 Wi-Fi\n"
-                              "   %s\n"
-                              "   密码 %s\n\n"
-                              "2. 浏览器打开\n"
-                              "   http://192.168.4.1/\n\n"
-                              "3. 网页修改头像和资料",
-                              app_config_ap_ssid(),
-                              app_config_ap_password());
+        lv_label_set_text_fmt(s_line_ssid, "热点  %s", app_config_ap_ssid());
+        if (s_line_pwd_label) {
+            lv_label_set_text(s_line_pwd_label, "密码");
+        }
+        if (s_line_pwd) {
+            lv_label_set_text(s_line_pwd, app_config_ap_password());
+        }
+        if (s_line_browser) {
+            lv_label_set_text(s_line_browser, "浏览器打开");
+        }
+        if (s_line_url) {
+            lv_label_set_text(s_line_url, "http://192.168.4.1/");
+        }
     } else {
-        lv_label_set_text(s_ap_info, "热点开启失败\n请返回后重试");
+        lv_label_set_text(s_line_ssid, "热点开启失败");
+        if (s_line_pwd_label) {
+            lv_label_set_text(s_line_pwd_label, "请返回后重试");
+        }
+        if (s_line_pwd) {
+            lv_label_set_text(s_line_pwd, "");
+        }
+        if (s_line_browser) {
+            lv_label_set_text(s_line_browser, "");
+        }
+        if (s_line_url) {
+            lv_label_set_text(s_line_url, "");
+        }
     }
 }
 
@@ -52,7 +72,6 @@ static void ap_start_task(void *arg)
         ESP_LOGE(TAG, "SoftAP 失败: %s", esp_err_to_name(err));
     }
     if (!s_page_alive) {
-        // 用户已离开设置页：立刻关掉刚拉起的热点。
         app_config_ap_stop();
     } else if (bsp_lvgl_lock(1000)) {
         refresh_ap_info();
@@ -86,21 +105,28 @@ void app_settings_enter(void)
     lv_obj_t *bar = app_ui_topbar_create(s_card);
     s_batt = (lv_obj_t *)lv_obj_get_user_data(bar);
 
-    lv_obj_t *title = app_ui_label(s_card, "手机联网设置", APP_COL_INK);
-    lv_obj_set_style_text_align(title, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_set_width(title, 200);
-    lv_obj_set_pos(title, 20, 40);
+    s_line_ssid = app_ui_label(s_card, "正在开启热点…", APP_COL_INK);
+    lv_obj_set_width(s_line_ssid, 200);
+    lv_obj_set_pos(s_line_ssid, 24, 56);
 
-    s_ap_info = app_ui_label(s_card, "正在开启热点…", APP_COL_INK);
-    lv_obj_set_width(s_ap_info, 200);
-    lv_label_set_long_mode(s_ap_info, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_line_space(s_ap_info, 2, 0);
-    lv_obj_set_pos(s_ap_info, 20, 72);
+    s_line_pwd_label = app_ui_label(s_card, "", APP_COL_INK);
+    lv_obj_set_pos(s_line_pwd_label, 24, 88);
+
+    s_line_pwd = app_ui_label(s_card, "", APP_COL_RED);
+    lv_obj_set_style_text_font(s_line_pwd, &lv_font_montserrat_20, 0);
+    lv_obj_set_pos(s_line_pwd, 72, 84);
+
+    s_line_browser = app_ui_label(s_card, "", APP_COL_INK);
+    lv_obj_set_pos(s_line_browser, 24, 128);
+
+    s_line_url = app_ui_label(s_card, "", APP_COL_INK);
+    lv_obj_set_style_text_font(s_line_url, &lv_font_montserrat_14, 0);
+    lv_obj_set_pos(s_line_url, 24, 156);
 
     s_status = app_ui_label(s_card, "", APP_COL_RED);
     lv_obj_set_style_text_align(s_status, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_width(s_status, 200);
-    lv_obj_set_pos(s_status, 20, 250);
+    lv_obj_set_pos(s_status, 20, 220);
 
     lv_obj_t *hint = app_ui_label(s_card, "确定键返回通行证", APP_COL_MUTED);
     lv_obj_set_style_text_align(hint, LV_TEXT_ALIGN_CENTER, 0);
@@ -109,7 +135,6 @@ void app_settings_enter(void)
 
     lv_screen_load(s_scr);
 
-    // 绝不能在按键回调/LVGL 锁内同步起 Wi-Fi，否则按键任务会卡死。
     if (s_ap_task == NULL) {
         xTaskCreate(ap_start_task, "ap_cfg", 8192, NULL, 5, &s_ap_task);
     }
@@ -137,7 +162,11 @@ void app_settings_exit(void)
     s_scr = NULL;
     s_card = NULL;
     s_batt = NULL;
-    s_ap_info = NULL;
+    s_line_ssid = NULL;
+    s_line_pwd_label = NULL;
+    s_line_pwd = NULL;
+    s_line_browser = NULL;
+    s_line_url = NULL;
     s_status = NULL;
 }
 

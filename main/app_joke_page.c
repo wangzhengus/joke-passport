@@ -1,10 +1,11 @@
-// main/app_joke_page.c —— 冷笑话页：同款黑底圆角卡 + 居中顶栏。
+// main/app_joke_page.c —— 冷笑话页：进页/上下键均为随机一条（尽量不重复）。
 #include "app.h"
 
 #include "app_jokes.h"
 #include "app_ui.h"
 #include "bsp_battery.h"
 #include "bsp_display.h"
+#include "esp_random.h"
 #include "esp_timer.h"
 #include "lvgl.h"
 
@@ -27,6 +28,23 @@ static void batt_tick(void *arg)
     bsp_lvgl_unlock();
 }
 
+static size_t pick_random_idx(size_t avoid)
+{
+    size_t n = app_jokes_count();
+    if (n == 0) {
+        return 0;
+    }
+    if (n == 1) {
+        return 0;
+    }
+    size_t next = (size_t)(esp_random() % n);
+    // 尽量不与当前相同
+    if (next == avoid) {
+        next = (next + 1 + (esp_random() % (n - 1))) % n;
+    }
+    return next;
+}
+
 static void refresh_joke(void)
 {
     const app_joke_t *j = app_jokes_get(s_idx);
@@ -37,6 +55,8 @@ static void refresh_joke(void)
 
 void app_joke_enter(void)
 {
+    s_idx = pick_random_idx((size_t)-1);
+
     s_scr = app_ui_screen_create();
     s_card = app_ui_card(s_scr);
 
@@ -107,11 +127,8 @@ void app_joke_key(bsp_btn_t btn, bsp_btn_ev_t ev)
         app_goto(APP_PAGE_HOME);
         return;
     }
-    if (btn == BSP_BTN_UP) {
-        s_idx = (s_idx + n - 1) % n;
-        refresh_joke();
-    } else if (btn == BSP_BTN_DOWN) {
-        s_idx = (s_idx + 1) % n;
+    if (btn == BSP_BTN_UP || btn == BSP_BTN_DOWN) {
+        s_idx = pick_random_idx(s_idx);
         refresh_joke();
     }
 }
