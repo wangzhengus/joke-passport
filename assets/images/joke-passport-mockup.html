@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>笑场通行证 · 名片护照风预览</title>
+  <style>
+    :root {
+      --bg: #F7F4EF;
+      --ink: #1A1A1A;
+      --muted: #6B6B6B;
+      --line: #C8C2B8;
+      --line-soft: #E4DFD6;
+      --accent: #2C2C2C;
+      --chip: #EFEAE3;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 18px;
+      padding: 28px 16px 48px;
+      background: #121418;
+      color: #d8dde6;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    h1 { font-size: 17px; font-weight: 600; }
+    .meta { font-size: 12px; opacity: 0.65; text-align: center; max-width: 400px; line-height: 1.5; }
+    .device-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .tag { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.5; }
+
+    .screen {
+      width: 240px;
+      height: 320px;
+      background: var(--bg);
+      color: var(--ink);
+      border: 1px solid #000;
+      position: relative;
+      overflow: hidden;
+      font-family: "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+      user-select: none;
+    }
+    .screen.hidden { display: none; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px 6px;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+    .title {
+      padding: 10px 12px 0;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .sub {
+      padding: 2px 12px 8px;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .hintbar {
+      position: absolute;
+      left: 0; right: 0; bottom: 0;
+      padding: 8px 12px 10px;
+      border-top: 1px solid var(--line);
+      background: var(--bg);
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+    .hintbar.center { justify-content: center; gap: 14px; }
+
+    /* Passport home */
+    .pass-frame {
+      margin: 0 12px;
+      border: 1.5px solid var(--ink);
+      padding: 8px;
+      height: 188px;
+    }
+    .pass-inner {
+      border: 1px solid var(--line);
+      height: 100%;
+      padding: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .photo {
+      width: 72px;
+      height: 92px;
+      border: 1px solid var(--ink);
+      background: var(--chip);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .photo .face {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #d9d3c8;
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .photo .ph {
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+    .fields { flex: 1; min-width: 0; padding-top: 2px; }
+    .field { margin-bottom: 8px; }
+    .field .lab {
+      font-size: 8px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      margin-bottom: 1px;
+    }
+    .field .val {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.2;
+      border-bottom: 1px solid var(--line-soft);
+      padding-bottom: 2px;
+      word-break: break-all;
+    }
+    .field.bio .val { font-size: 11px; font-weight: 500; }
+    .stamp {
+      position: absolute;
+      right: 22px;
+      bottom: 52px;
+      width: 34px;
+      height: 34px;
+      border: 1.5px solid rgba(180, 40, 40, 0.45);
+      border-radius: 50%;
+      color: rgba(180, 40, 40, 0.55);
+      font-size: 8px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(-18deg);
+      letter-spacing: 0.04em;
+    }
+    .home-hints {
+      margin: 8px 12px 0;
+      font-size: 9px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    /* Joke */
+    .joke-body {
+      padding: 28px 18px 60px;
+    }
+    .joke-q {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.55;
+      margin-bottom: 14px;
+    }
+    .rule {
+      border: none;
+      border-top: 1px solid var(--line);
+      margin: 0 0 14px;
+    }
+    .joke-a {
+      font-size: 14px;
+      line-height: 1.55;
+      color: #333;
+    }
+    .page-chip {
+      position: absolute;
+      top: 40px;
+      right: 12px;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    /* Settings */
+    .set-body { padding: 10px 12px 56px; }
+    .sec {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      margin: 4px 0 6px;
+    }
+    .avatars {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .av {
+      aspect-ratio: 3/4;
+      border: 1px solid var(--line);
+      background: var(--chip);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .av.on { border: 1.5px solid var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+    .cap { font-size: 8px; color: var(--muted); margin-bottom: 10px; }
+    .form-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line-soft);
+      font-size: 11px;
+      gap: 8px;
+    }
+    .form-row .k { color: var(--muted); font-size: 10px; flex-shrink: 0; }
+    .form-row .v { font-weight: 600; text-align: right; }
+    .qr-box {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px;
+      border: 1px solid var(--line);
+    }
+    .qr {
+      width: 44px; height: 44px; flex-shrink: 0;
+      background:
+        repeating-linear-gradient(0deg, #111 0 2px, #fff 2px 4px),
+        repeating-linear-gradient(90deg, #111 0 2px, #fff 2px 4px);
+      background-blend-mode: multiply;
+      border: 1px solid var(--ink);
+    }
+    .qr-txt { font-size: 10px; line-height: 1.45; color: #333; }
+
+    .keys { display: flex; gap: 8px; }
+    .key {
+      width: 56px; height: 28px; border-radius: 4px;
+      border: 1px solid #3a4150; background: #222831; color: #eee;
+      font-size: 11px; cursor: pointer;
+    }
+    .key:active { background: #343b48; }
+    .note { font-size: 11px; opacity: 0.5; max-width: 420px; text-align: center; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <h1>笑场通行证 · 名片 / 护照风</h1>
+  <p class="meta">极简、好读。首页仿护照资料页。画布 240×320。下方按键可点；确定按住约 0.6s 为长按。</p>
+
+  <div class="device-wrap">
+    <div class="tag">Live preview</div>
+
+    <div class="screen" id="home">
+      <div class="topbar"><span>Joke Passport</span><span>87%</span></div>
+      <div class="title">笑场通行证</div>
+      <div class="sub">Identity Card</div>
+      <div class="pass-frame">
+        <div class="pass-inner">
+          <div class="photo">
+            <div class="face" id="homeAvatar">🦊</div>
+            <div class="ph">PHOTO</div>
+          </div>
+          <div class="fields">
+            <div class="field">
+              <div class="lab">姓名 / NAME</div>
+              <div class="val" id="homeName">阿杰</div>
+            </div>
+            <div class="field">
+              <div class="lab">头衔 / TITLE</div>
+              <div class="val" id="homeTitle">酒吧气氛组</div>
+            </div>
+            <div class="field bio">
+              <div class="lab">简介 / INTRO</div>
+              <div class="val" id="homeBio">专治约会冷场</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="stamp">JP</div>
+      <div class="home-hints">
+        短按任意键 · 讲笑话<br />
+        长按确定 · 设置资料
+      </div>
+    </div>
+
+    <div class="screen hidden" id="joke">
+      <div class="topbar"><span>Joke Passport</span><span>87%</span></div>
+      <div class="page-chip" id="pageNum">03 / 12</div>
+      <div class="joke-body">
+        <div class="joke-q" id="jokeQ"></div>
+        <hr class="rule" />
+        <div class="joke-a" id="jokeA"></div>
+      </div>
+      <div class="hintbar">
+        <span>↑↓ 换一条</span>
+        <span>确定 返回</span>
+      </div>
+    </div>
+
+    <div class="screen hidden" id="settings">
+      <div class="topbar"><span>Joke Passport</span><span>87%</span></div>
+      <div class="set-body">
+        <div class="sec">头像 / AVATAR</div>
+        <div class="avatars" id="avatarGrid"></div>
+        <div class="cap">预置 10 张 · 也可手机上传</div>
+        <div class="form-row"><span class="k">姓名</span><span class="v" id="sName">阿杰</span></div>
+        <div class="form-row"><span class="k">头衔</span><span class="v" id="sTitle">酒吧气氛组</span></div>
+        <div class="form-row"><span class="k">简介</span><span class="v" id="sBio">专治约会冷场</span></div>
+        <div class="qr-box">
+          <div class="qr" aria-hidden="true"></div>
+          <div class="qr-txt">扫码联网配置<br />改资料 / 上传头像</div>
+        </div>
+      </div>
+      <div class="hintbar">
+        <span>↑↓ 选头像</span>
+        <span>确定 保存</span>
+        <span>长按 返回</span>
+      </div>
+    </div>
+
+    <div class="keys">
+      <button class="key" id="btnUp" type="button">上</button>
+      <button class="key" id="btnOk" type="button">确定</button>
+      <button class="key" id="btnDown" type="button">下</button>
+    </div>
+  </div>
+
+  <p class="note">风格：护照纸色底、细线分区、中英微标签、高对比正文。实现固件时按此层级排版。</p>
+
+  <script>
+    const jokes = [
+      ["为什么企鹅的肚子是白色的？", "因为它们不会穿衣服。"],
+      ["冰箱里的灯谁关的？", "关门的人。"],
+      ["什么瓜不能吃？", "傻瓜。"],
+      ["鱼为什么活在水里？", "因为上岸会被车撞。"],
+      ["什么蛋不能吃？", "坏蛋。"],
+      ["墙上挂什么画最吓人？", "电话。"],
+      ["哪一种马不会走路？", "木马。"],
+      ["什么东西越洗越脏？", "水。"],
+      ["为什么蜗牛不说话？", "它在憋壳。"],
+      ["约会最安全的开场白？", "给你讲个不冷的冷笑话。"],
+      ["什么书最怕湿？", "历史——一湿就成湿史。"],
+      ["酒吧最不冷的冷场？", "掏出这张通行证。"],
+    ];
+    const avatars = ["🦊","🐻","🐱","🐶","🐼","🐸","🐧","🐰","🐯","🦉"];
+    let page = "home", jokeIdx = 2, avIdx = 0, okTimer = null, longFired = false;
+
+    const els = {
+      home: document.getElementById("home"),
+      joke: document.getElementById("joke"),
+      settings: document.getElementById("settings"),
+    };
+
+    function show(id) {
+      page = id;
+      Object.keys(els).forEach((k) => els[k].classList.toggle("hidden", k !== id));
+      if (id === "joke") renderJoke();
+      if (id === "settings") renderAvatars();
+    }
+
+    function renderJoke() {
+      const [q, a] = jokes[jokeIdx];
+      document.getElementById("jokeQ").textContent = q;
+      document.getElementById("jokeA").textContent = a;
+      document.getElementById("pageNum").textContent =
+        String(jokeIdx + 1).padStart(2, "0") + " / " + String(jokes.length).padStart(2, "0");
+    }
+
+    function renderAvatars() {
+      const grid = document.getElementById("avatarGrid");
+      grid.innerHTML = "";
+      avatars.forEach((a, i) => {
+        const el = document.createElement("div");
+        el.className = "av" + (i === avIdx ? " on" : "");
+        el.textContent = a;
+        el.onclick = () => { avIdx = i; renderAvatars(); syncAvatar(); };
+        grid.appendChild(el);
+      });
+    }
+
+    function syncAvatar() {
+      document.getElementById("homeAvatar").textContent = avatars[avIdx];
+    }
+
+    function onUp() {
+      if (page === "home") show("joke");
+      else if (page === "joke") { jokeIdx = (jokeIdx + jokes.length - 1) % jokes.length; renderJoke(); }
+      else { avIdx = (avIdx + avatars.length - 1) % avatars.length; renderAvatars(); syncAvatar(); }
+    }
+    function onDown() {
+      if (page === "home") show("joke");
+      else if (page === "joke") { jokeIdx = (jokeIdx + 1) % jokes.length; renderJoke(); }
+      else { avIdx = (avIdx + 1) % avatars.length; renderAvatars(); syncAvatar(); }
+    }
+    function onOkClick() {
+      if (page === "home") show("joke");
+      else show("home");
+    }
+    function onOkLong() {
+      if (page === "home") show("settings");
+      else if (page === "settings") show("home");
+    }
+
+    document.getElementById("btnUp").onclick = onUp;
+    document.getElementById("btnDown").onclick = onDown;
+    const btnOk = document.getElementById("btnOk");
+    btnOk.addEventListener("mousedown", () => {
+      longFired = false;
+      okTimer = setTimeout(() => { longFired = true; onOkLong(); }, 600);
+    });
+    btnOk.addEventListener("mouseup", () => {
+      clearTimeout(okTimer);
+      if (!longFired) onOkClick();
+    });
+    btnOk.addEventListener("mouseleave", () => clearTimeout(okTimer));
+    btnOk.addEventListener("touchstart", (e) => {
+      e.preventDefault();
+      longFired = false;
+      okTimer = setTimeout(() => { longFired = true; onOkLong(); }, 600);
+    }, { passive: false });
+    btnOk.addEventListener("touchend", (e) => {
+      e.preventDefault();
+      clearTimeout(okTimer);
+      if (!longFired) onOkClick();
+    });
+
+    renderJoke();
+    renderAvatars();
+    syncAvatar();
+  </script>
+</body>
+</html>
