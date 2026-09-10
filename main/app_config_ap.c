@@ -14,8 +14,8 @@
 #include "esp_event.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
-#include "esp_mac.h"
 #include "esp_netif.h"
+#include "esp_random.h"
 #include "esp_wifi.h"
 #include "nvs_flash.h"
 
@@ -24,8 +24,10 @@ static const char *TAG = "config_ap";
 #define AP_CHANNEL 1
 #define AP_MAX_CONN 1
 #define BODY_MAX 512
+#define AP_SSID "JokePassport"
 
-static char s_ssid[32];
+static char s_ssid[32] = AP_SSID;
+static char s_password[9];  // 8 位数字 + NUL
 static bool s_netif_ready;
 static bool s_wifi_inited;
 static bool s_wifi_started;
@@ -76,9 +78,17 @@ static const char OK_HTML[] =
 
 static void build_ssid(void)
 {
-    uint8_t mac[6] = {0};
-    esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
-    snprintf(s_ssid, sizeof(s_ssid), "JokePass-%02X%02X", mac[4], mac[5]);
+    strncpy(s_ssid, AP_SSID, sizeof(s_ssid) - 1);
+    s_ssid[sizeof(s_ssid) - 1] = '\0';
+}
+
+// 每次开热点生成新的 8 位数字密码（WPA2 要求至少 8 字符）。
+static void build_password(void)
+{
+    for (int i = 0; i < 8; i++) {
+        s_password[i] = (char)('0' + (esp_random() % 10));
+    }
+    s_password[8] = '\0';
 }
 
 static int hex_val(char c)
@@ -306,6 +316,7 @@ esp_err_t app_config_ap_start(void)
     if (s_running) return ESP_OK;
 
     build_ssid();
+    build_password();
 
     // NVS 已由 app_profile_init 准备好；此处再调一次保持幂等。
     (void)nvs_flash_init();
@@ -338,9 +349,10 @@ esp_err_t app_config_ap_start(void)
     wifi_config_t ap = {0};
     strncpy((char *)ap.ap.ssid, s_ssid, sizeof(ap.ap.ssid));
     ap.ap.ssid_len = strlen(s_ssid);
+    strncpy((char *)ap.ap.password, s_password, sizeof(ap.ap.password));
     ap.ap.channel = AP_CHANNEL;
     ap.ap.max_connection = AP_MAX_CONN;
-    ap.ap.authmode = WIFI_AUTH_OPEN;
+    ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
 
     err = esp_wifi_set_config(WIFI_IF_AP, &ap);
     if (err != ESP_OK) return err;
@@ -356,7 +368,8 @@ esp_err_t app_config_ap_start(void)
     }
 
     s_running = true;
-    ESP_LOGI(TAG, "SoftAP 已开 SSID=%s URL=http://192.168.4.1/", s_ssid);
+    ESP_LOGI(TAG, "SoftAP 已开 SSID=%s pwd=%s URL=http://192.168.4.1/",
+             s_ssid, s_password);
     return ESP_OK;
 }
 
@@ -393,6 +406,14 @@ const char *app_config_ap_ssid(void)
         build_ssid();
     }
     return s_ssid;
+}
+
+const char *app_config_ap_password(void)
+{
+    if (s_password[0] == '\0') {
+        build_password();
+    }
+    return s_password;
 }
 
 bool app_config_ap_take_profile_updated(void)

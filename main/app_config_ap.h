@@ -14,8 +14,11 @@ void app_config_ap_stop(void);
 
 bool app_config_ap_is_running(void);
 
-// 当前热点名，例如 JokePass-A1B2；未启动时仍返回将要使用的名字。
+// 当前热点名（固定 JokePassport）。
 const char *app_config_ap_ssid(void);
+
+// 当前 8 位数字密码；每次 start 重新随机。未启动时也可能已预生成。
+const char *app_config_ap_password(void);
 
 // 网页保存资料后置位；调用方读后清除。用于设置页刷新 UI（勿在 HTTP 任务里碰 LVGL）。
 bool app_config_ap_take_profile_updated(void);

@@ -32,11 +32,12 @@ static void refresh_ap_info(void)
         lv_label_set_text_fmt(s_ap_info,
                               "1. 连接手机 Wi-Fi\n"
                               "   %s\n"
-                              "   （无密码）\n\n"
+                              "   密码 %s\n\n"
                               "2. 浏览器打开\n"
                               "   http://192.168.4.1/\n\n"
                               "3. 网页修改头像和资料",
-                              app_config_ap_ssid());
+                              app_config_ap_ssid(),
+                              app_config_ap_password());
     } else {
         lv_label_set_text(s_ap_info, "热点开启失败\n请返回后重试");
     }
